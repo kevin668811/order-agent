@@ -13,7 +13,7 @@
 ## 发布到 GitHub Pages
 
 1. 在 GitHub 新建一个公开仓库，比如 `order-agent`。
-2. 上传本文件夹里的全部文件：`index.html`、`.nojekyll`、`vendor/exceljs.min.js`。
+2. 上传 `index.html`、`.nojekyll`、`README.md`。
 3. 打开仓库的 `Settings` -> `Pages`。
 4. `Build and deployment` 选择 `Deploy from a branch`。
 5. Branch 选择 `main`，目录选择 `/root`，保存。
