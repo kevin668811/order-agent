@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>自发货下单智能体</title>
+  <script src="./vendor/exceljs.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      color: #172026;
+      background: #f3f6f5;
+      letter-spacing: 0;
+    }
+    header {
+      padding: 24px 36px;
+      background: #e8f2ee;
+      border-bottom: 1px solid #d2ddd8;
+    }
+    h1 { margin: 0; font-size: 30px; line-height: 1.2; }
+    main { max-width: 1060px; margin: 0 auto; padding: 26px 20px 40px; }
+    .panel {
+      background: #fff;
+      border: 1px solid #d7dde1;
+      border-radius: 8px;
+      box-shadow: 0 12px 28px rgba(25,34,42,.08);
+      padding: 18px;
+    }
+    form { display: grid; gap: 14px; }
+    .file-row {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 10px 14px;
+      align-items: center;
+    }
+    .label { color: #65717a; font-size: 13px; }
+    input[type=file] {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid #d7dde1;
+      border-radius: 7px;
+      padding: 7px;
+      background: #fff;
+      font: inherit;
+      font-size: 14px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      border: 1px solid #d7dde1;
+      border-radius: 7px;
+      padding: 10px;
+      background: #fff;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.45;
+      resize: vertical;
+    }
+    .actions {
+      margin-top: 18px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button, a.button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #2f7d5c;
+      color: #fff;
+      text-decoration: none;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .secondary { background: #fff; color: #172026; border: 1px solid #d7dde1; }
+    .notice {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #f8fbfc;
+      border: 1px solid #cfd8dc;
+      color: #65717a;
+      line-height: 1.5;
+    }
+    .ok { background: #f2faf6; color: #225e46; border-color: rgba(47,125,92,.32); }
+    .err { background: #fff5f4; color: #b54a45; border-color: rgba(181,74,69,.32); }
+    .preview {
+      margin-top: 16px;
+      overflow: auto;
+      border: 1px solid #e1e6e8;
+      border-radius: 8px;
+      max-height: 360px;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 880px; font-size: 13px; }
+    th, td {
+      border-bottom: 1px solid #edf0f2;
+      border-right: 1px solid #edf0f2;
+      padding: 8px 9px;
+      text-align: left;
+      white-space: nowrap;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    th { position: sticky; top: 0; background: #edf3f1; z-index: 1; }
+    @media (max-width: 700px) {
+      header { padding: 20px; }
+      .file-row { grid-template-columns: 1fr; }
+      table { min-width: 760px; }
+    }
+  </style>
+</head>
+<body>
+  <header><h1>自发货下单智能体</h1></header>
+  <main>
+    <section class="panel">
+      <form id="orderForm">
+        <div class="file-row">
+          <div class="label">dewell 订单</div>
+          <input type="file" id="dewellFile" accept=".xlsx,.xlsm">
+        </div>
+        <div class="file-row">
+          <div class="label">3soil 订单</div>
+          <input type="file" id="threeSoilFile" accept=".xlsx,.xlsm">
+        </div>
+        <div class="file-row">
+          <div class="label">Shein 订单</div>
+          <input type="file" id="sheinFile" accept=".xlsx,.xlsm">
+        </div>
+        <div class="file-row">
+          <div class="label">越山丘订单</div>
+          <input type="file" id="yueShanQiuFile" accept=".xlsx,.xlsm">
+        </div>
+        <div class="file-row">
+          <div class="label">Shopify 手动</div>
+          <textarea id="manualShopify" placeholder="shopify  订单号：1182 sku: 4296X&#10;Brenda Corbett&#10;22 Clinton Street&#10;Saratoga Springs, New York 12866&#10;US&#10;+15182232912"></textarea>
+        </div>
+        <div class="file-row">
+          <div class="label">下单模板</div>
+          <input type="file" id="templateFile" accept=".xlsx,.xlsm" required>
+        </div>
+        <div class="actions">
+          <button type="submit" id="generateBtn">选择文件生成下单表</button>
+          <button type="button" class="secondary" id="resetBtn">清空</button>
+        </div>
+      </form>
+      <div class="notice" id="notice">选择有订单的来源和下单模板即可。文件只在浏览器本地处理，不会上传到服务器。</div>
+      <div class="preview">
+        <table>
+          <thead>
+            <tr>
+              <th>来源</th>
+              <th>订单号</th>
+              <th>收件人</th>
+              <th>州</th>
+              <th>城市</th>
+              <th>地址1</th>
+              <th>地址2</th>
+              <th>邮编</th>
+              <th>SKU</th>
+              <th>数量</th>
+            </tr>
+          </thead>
+          <tbody id="previewBody"><tr><td colspan="10">暂无订单</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const skuExpansions = new Map(Object.entries({
+      "4274X": ["4274A", "4274B", "4274C", "4274D"],
+      "3874X": ["3874A", "3874B", "3874C", "3874D"],
+      "4274Y": ["42742", "42744", "42745", "42746"],
+      "3874Y": ["38742", "38744", "38745", "38746"],
+      "4262-B": ["426215", "426216", "426217", "426218"],
+      "4262-S": ["426213", "426214", "426219"],
+      "3862-B": ["386215", "386216", "386217", "386218"],
+      "3862-S": ["386213", "386214", "386219"],
+      "4295T": ["42955", "42956", "42957"],
+      "Q21-2": ["Q21-B", "Q21-W"],
+      "4255-S1": ["42552", "42556", "42557"],
+      "4255-S2": ["42553", "42554", "42555"],
+      "4255-B1": ["42552-b", "42556-b", "42557-b"],
+      "4255-B2": ["42553-b", "42555-b", "42555-b"],
+      "4254A": ["42542", "42544", "42546"],
+      "4254B": ["42543", "42545", "42547"],
+      "AW49-2": ["AW4901", "AW4902"],
+      "AW46-2": ["AW4601", "AW4602"],
+      "AM49-2": ["AM4901", "AM4902"],
+      "AM46-2": ["AM4601", "AM4602"],
+      "AM45-2": ["AM4501", "AM4502"],
+      "AM44-2": ["AM4401", "AM4402"],
+      "AT49-2": ["AT4901", "AT4903"],
+      "AT46-2": ["AT4601", "AT4603"],
+      "AT45-2": ["AT4501", "AT4503"],
+      "AT44-2": ["AT4401", "AT4403"],
+      "AX49-2": ["AX4901", "AX4902"],
+      "AX46-2": ["AX4601", "AX4602"],
+      "AX45-2": ["AX4501", "AX4502"],
+      "AX44-2": ["AX4401", "AX4402"],
+      "AX42-2": ["AX4201", "AX4202"],
+      "DG49-3": ["DG4901", "DG4902", "DG4903"],
+      "AQ49-2": ["AQ4901", "AQ4902"],
+      "AQ46-2": ["AQ4601", "AQ4602"],
+      "4279-A": ["42798", "42799", "427910"],
+      "3879-A": ["38798", "38799", "387910"],
+      "4279-B": ["42792", "42793", "42794"],
+      "3879-B": ["38792", "38793", "38794"],
+      "4279-C": ["42795", "42796", "42797"],
+      "3879-C": ["38795", "38796", "38797"]
+    }));
+
+    const els = {
+      form: document.getElementById("orderForm"),
+      notice: document.getElementById("notice"),
+      button: document.getElementById("generateBtn"),
+      preview: document.getElementById("previewBody"),
+      reset: document.getElementById("resetBtn")
+    };
+    document.documentElement.dataset.exceljs = window.ExcelJS ? "loaded" : "missing";
+
+    const fileIds = ["dewellFile", "threeSoilFile", "sheinFile", "yueShanQiuFile", "templateFile"];
+
+    function setNotice(message, type = "") {
+      els.notice.className = `notice ${type}`.trim();
+      els.notice.textContent = message;
+    }
+
+    function normalizeSku(sku) {
+      return String(sku || "").replace(/[\u200B-\u200F\uFEFF\u00A0\u202F]/g, "").trim();
+    }
+
+    function skuRows(sku) {
+      const clean = normalizeSku(sku);
+      for (const [key, value] of skuExpansions.entries()) {
+        if (key.toLowerCase() === clean.toLowerCase()) return value;
+      }
+      return [clean];
+    }
+
+    function text(value) {
+      if (value === null || value === undefined) return "";
+      if (typeof value === "object") {
+        if (value.text) return String(value.text).trim();
+        if (value.richText) return value.richText.map(x => x.text || "").join("").trim();
+        if (value.result !== undefined) return text(value.result);
+        if (value.hyperlink && value.text) return String(value.text).trim();
+      }
+      return String(value).trim();
+    }
+
+    function makeOrder({
+      source = "",
+      orderNo = "",
+      name = "",
+      state = "",
+      city = "",
+      address1 = "",
+      address2 = "",
+      zip = "",
+      sku = "",
+      qty = "1",
+      phone = ""
+    }) {
+      return {
+        source,
+        orderNo: String(orderNo || "").trim(),
+        name: String(name || "").trim(),
+        state: String(state || "").trim(),
+        city: String(city || "").trim(),
+        address1: String(address1 || "").trim(),
+        address2: String(address2 || "").trim(),
+        zip: String(zip || "").trim(),
+        sku: normalizeSku(sku),
+        qty: String(qty || "1").trim(),
+        phone: String(phone || "").trim()
+      };
+    }
+
+    async function workbookFromFile(file) {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      return workbook;
+    }
+
+    function headerMap(sheet) {
+      const map = new Map();
+      sheet.getRow(1).eachCell((cell, col) => {
+        map.set(text(cell.value).replace(/\s+/g, " "), col);
+      });
+      return map;
+    }
+
+    function cellByHeader(row, map, header) {
+      const col = map.get(header);
+      return col ? text(row.getCell(col).value) : "";
+    }
+
+    async function readAmazon(file, source) {
+      if (!file) return [];
+      const workbook = await workbookFromFile(file);
+      const sheet = workbook.worksheets[0];
+      const map = headerMap(sheet);
+      const orders = [];
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const orderNo = cellByHeader(row, map, "Order Number");
+        const name = cellByHeader(row, map, "Recipient Name");
+        const sku = cellByHeader(row, map, "Stock SKU");
+        if (!orderNo && !name && !sku) return;
+        orders.push(makeOrder({
+          source,
+          orderNo,
+          name,
+          state: cellByHeader(row, map, "State Or Region"),
+          city: cellByHeader(row, map, "City"),
+          address1: cellByHeader(row, map, "Address1"),
+          address2: cellByHeader(row, map, "Address2"),
+          zip: cellByHeader(row, map, "Zip Code"),
+          sku,
+          qty: cellByHeader(row, map, "Quantity") || "1"
+        }));
+      });
+      return orders;
+    }
+
+    async function readShein(file) {
+      if (!file) return [];
+      const workbook = await workbookFromFile(file);
+      const sheet = workbook.worksheets[0];
+      const map = headerMap(sheet);
+      const orders = [];
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const orderNo = cellByHeader(row, map, "GSP订单号");
+        const sku = cellByHeader(row, map, "卖家SKU");
+        const name = cellByHeader(row, map, "用户全称");
+        if (!orderNo && !name && !sku) return;
+        orders.push(makeOrder({
+          source: "Shein",
+          orderNo,
+          name,
+          state: cellByHeader(row, map, "省份"),
+          city: cellByHeader(row, map, "城市"),
+          address1: cellByHeader(row, map, "用户地址1"),
+          address2: cellByHeader(row, map, "用户地址2"),
+          zip: cellByHeader(row, map, "邮编"),
+          sku,
+          qty: "1",
+          phone: cellByHeader(row, map, "手机号")
+        }));
+      });
+      return orders;
+    }
+
+    async function readYueShanQiu(file) {
+      if (!file) return [];
+      const workbook = await workbookFromFile(file);
+      const sheet = workbook.getWorksheet("报价详情") || workbook.worksheets[0];
+      const orders = [];
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const orderNo = text(row.getCell(1).value);
+        const sku = text(row.getCell(2).value);
+        const name = text(row.getCell(10).value);
+        if (!orderNo && !name && !sku) return;
+        const address2 = [text(row.getCell(12).value), text(row.getCell(13).value)].filter(Boolean).join(" ");
+        orders.push(makeOrder({
+          source: "越山丘",
+          orderNo,
+          sku,
+          qty: text(row.getCell(3).value) || "1",
+          phone: text(row.getCell(9).value),
+          name,
+          address1: text(row.getCell(11).value),
+          address2,
+          city: text(row.getCell(14).value),
+          state: text(row.getCell(15).value),
+          zip: text(row.getCell(16).value)
+        }));
+      });
+      return orders;
+    }
+
+    function parseManualShopify(raw) {
+      const orders = [];
+      const blocks = String(raw || "").trim().split(/\n\s*\n/).filter(Boolean);
+      for (const block of blocks) {
+        const orderNo = (block.match(/订单号\s*[:：]\s*([^\s，,]+)/) || [])[1] || "";
+        const sku = (block.match(/\bsku\s*[:：]\s*([^\s，,]+)/i) || [])[1] || "";
+        const lines = block.split(/\r?\n/).map(x => x.trim()).filter(Boolean)
+          .filter(line => !/shopify|订单号|sku\s*[:：]/i.test(line));
+        if (lines.length < 3) continue;
+        const cityLine = lines[2];
+        const cityMatch = cityLine.match(/^(.*?),\s*([A-Za-z ]+)\s+(\d{5}(?:-\d{4})?)$/);
+        const phone = (lines.find(line => /^\+?\d[\d\s\-()]{6,}$/.test(line)) || "").replace(/\s+/g, "");
+        orders.push(makeOrder({
+          source: "Shopify",
+          orderNo,
+          sku,
+          qty: "1",
+          name: lines[0],
+          address1: lines[1],
+          city: cityMatch ? cityMatch[1] : "",
+          state: cityMatch ? cityMatch[2] : "",
+          zip: cityMatch ? cityMatch[3] : "",
+          phone
+        }));
+      }
+      return orders;
+    }
+
+    function clone(value) {
+      if (value === undefined || value === null) return value;
+      if (value instanceof Date) return new Date(value.getTime());
+      if (typeof value !== "object") return value;
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function snapshotTemplateRow(row) {
+      const cells = {};
+      for (let col = 1; col <= 82; col += 1) {
+        const cell = row.getCell(col);
+        cells[col] = {
+          value: clone(cell.value),
+          style: clone(cell.style || {}),
+          numFmt: cell.numFmt,
+          alignment: clone(cell.alignment),
+          border: clone(cell.border),
+          fill: clone(cell.fill),
+          font: clone(cell.font),
+          protection: clone(cell.protection)
+        };
+      }
+      return { height: row.height, cells };
+    }
+
+    function copyTemplateRow(sheet, snapshot, rowNumber) {
+      const row = sheet.getRow(rowNumber);
+      row.height = snapshot.height;
+      for (let col = 1; col <= 82; col += 1) {
+        const data = snapshot.cells[col] || {};
+        const cell = row.getCell(col);
+        cell.value = clone(data.value) ?? null;
+        cell.style = clone(data.style || {});
+        if (data.numFmt) cell.numFmt = data.numFmt;
+        if (data.alignment) cell.alignment = clone(data.alignment);
+        if (data.border) cell.border = clone(data.border);
+        if (data.fill) cell.fill = clone(data.fill);
+        if (data.font) cell.font = clone(data.font);
+        if (data.protection) cell.protection = clone(data.protection);
+      }
+      return row;
+    }
+
+    function clearCells(row, start, end) {
+      for (let col = start; col <= end; col += 1) row.getCell(col).value = null;
+    }
+
+    function writeOrderRows(sheet, snapshot, orders, state) {
+      for (const order of orders) {
+        const key = `${order.address1}\n${order.address2}`;
+        for (const expandedSku of skuRows(order.sku)) {
+          const row = copyTemplateRow(sheet, snapshot, state.row);
+          const sameAddress = Boolean(order.address1) && key === state.lastAddressKey;
+          if (sameAddress) {
+            clearCells(row, 1, 21);
+          } else {
+            row.getCell(1).value = order.orderNo;
+            row.getCell(9).value = order.name;
+            row.getCell(10).value = "US";
+            row.getCell(12).value = order.state;
+            row.getCell(13).value = order.city;
+            row.getCell(14).value = order.address1;
+            row.getCell(15).value = order.address2;
+            row.getCell(16).value = order.phone;
+            row.getCell(17).value = order.zip;
+          }
+          row.getCell(22).value = expandedSku;
+          row.getCell(23).value = order.qty;
+          row.getCell(24).value = "TEST";
+          state.lastAddressKey = key;
+          state.row += 1;
+        }
+      }
+    }
+
+    function addSeparator(sheet, snapshot, state, label) {
+      const row = copyTemplateRow(sheet, snapshot, state.row);
+      clearCells(row, 1, 82);
+      row.getCell(1).value = `店铺：${label}`;
+      state.lastAddressKey = "";
+      state.row += 1;
+    }
+
+    function expandedCount(orders) {
+      return orders.reduce((sum, order) => sum + skuRows(order.sku).length, 0);
+    }
+
+    function renderPreview(groups) {
+      const rows = [];
+      for (const group of groups) {
+        for (const order of group.orders) {
+          rows.push({ group: group.label, order });
+          if (rows.length >= 200) break;
+        }
+        if (rows.length >= 200) break;
+      }
+      if (!rows.length) {
+        els.preview.innerHTML = '<tr><td colspan="10">暂无订单</td></tr>';
+        return;
+      }
+      els.preview.innerHTML = rows.map(({ group, order }) => `
+        <tr>
+          <td>${escapeHtml(group)}</td>
+          <td>${escapeHtml(order.orderNo)}</td>
+          <td>${escapeHtml(order.name)}</td>
+          <td>${escapeHtml(order.state)}</td>
+          <td>${escapeHtml(order.city)}</td>
+          <td>${escapeHtml(order.address1)}</td>
+          <td>${escapeHtml(order.address2)}</td>
+          <td>${escapeHtml(order.zip)}</td>
+          <td>${escapeHtml(order.sku)}</td>
+          <td>${escapeHtml(order.qty)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function stamp() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, "0");
+      return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    }
+
+    async function generate(event) {
+      event.preventDefault();
+      if (!window.ExcelJS) {
+        setNotice("Excel 组件没有加载成功，请刷新页面。", "err");
+        return;
+      }
+      const templateFile = document.getElementById("templateFile").files[0];
+      if (!templateFile) {
+        setNotice("请选择下单模板。", "err");
+        return;
+      }
+
+      els.button.disabled = true;
+      setNotice("正在读取订单并生成 Excel...", "");
+      try {
+        const groups = [
+          { label: "dewell", orders: await readAmazon(document.getElementById("dewellFile").files[0], "dewell") },
+          { label: "3soil", orders: await readAmazon(document.getElementById("threeSoilFile").files[0], "3soil") },
+          { label: "Shein", orders: await readShein(document.getElementById("sheinFile").files[0]) },
+          { label: "越山丘", orders: await readYueShanQiu(document.getElementById("yueShanQiuFile").files[0]) },
+          { label: "Shopify", orders: parseManualShopify(document.getElementById("manualShopify").value) }
+        ].filter(group => expandedCount(group.orders) > 0);
+
+        if (!groups.length) throw new Error("没有读取到订单，请至少选择一个订单来源或填写 Shopify 手动订单。");
+        renderPreview(groups);
+
+        const workbook = await workbookFromFile(templateFile);
+        const sheet = workbook.getWorksheet("自发货下单") || workbook.worksheets[0];
+        const snapshot = snapshotTemplateRow(sheet.getRow(2));
+        const totalRows = groups.reduce((sum, group) => sum + expandedCount(group.orders), 0) + Math.max(0, groups.length - 1);
+        const maxClear = Math.max(sheet.rowCount, 301, totalRows + 1);
+        for (let rowNumber = 2; rowNumber <= maxClear; rowNumber += 1) {
+          clearCells(sheet.getRow(rowNumber), 1, 82);
+        }
+
+        const state = { row: 2, lastAddressKey: "" };
+        groups.forEach((group, index) => {
+          if (index > 0) addSeparator(sheet, snapshot, state, group.label);
+          writeOrderRows(sheet, snapshot, group.orders, state);
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `order-${stamp()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(a.href);
+        a.remove();
+        setNotice(`已生成 ${totalRows} 行，文件已开始下载。`, "ok");
+      } catch (error) {
+        setNotice(`生成失败：${error.message}`, "err");
+      } finally {
+        els.button.disabled = false;
+      }
+    }
+
+    els.form.addEventListener("submit", generate);
+    els.reset.addEventListener("click", () => {
+      els.form.reset();
+      els.preview.innerHTML = '<tr><td colspan="10">暂无订单</td></tr>';
+      setNotice("已清空。选择有订单的来源和下单模板即可。", "");
+    });
+  </script>
+</body>
+</html>
