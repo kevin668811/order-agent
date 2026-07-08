@@ -147,6 +147,10 @@
           <textarea id="manualShopify" placeholder="shopify  订单号：1182 sku: 4296X&#10;Brenda Corbett&#10;22 Clinton Street&#10;Saratoga Springs, New York 12866&#10;US&#10;+15182232912"></textarea>
         </div>
         <div class="file-row">
+          <div class="label">补发手动</div>
+          <textarea id="manualReship" placeholder="John Adams&#10;(+1)2072174474&#10;12 Mia Rdg&#10;Sidney,Maine,United States&#10;04330&#10;4296B"></textarea>
+        </div>
+        <div class="file-row">
           <div class="label">下单模板</div>
           <input type="file" id="templateFile" accept=".xlsx,.xlsm" required>
         </div>
@@ -422,6 +426,29 @@
       return orders;
     }
 
+    function parseManualReship(raw) {
+      const orders = [];
+      const blocks = String(raw || "").trim().split(/\n\s*\n/).filter(Boolean);
+      for (const block of blocks) {
+        const lines = block.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+        if (lines.length < 6) continue;
+        const locationParts = lines[3].split(",").map(x => x.trim()).filter(Boolean);
+        orders.push(makeOrder({
+          source: "补发",
+          orderNo: "补发",
+          name: lines[0],
+          phone: lines[1].replace(/[()\s-]/g, ""),
+          address1: lines[2],
+          city: locationParts[0] || "",
+          state: locationParts[1] || "",
+          zip: lines[4],
+          sku: lines[5],
+          qty: "1"
+        }));
+      }
+      return orders;
+    }
+
     function clone(value) {
       if (value === undefined || value === null) return value;
       if (value instanceof Date) return new Date(value.getTime());
@@ -574,10 +601,11 @@
           { label: "3soil", orders: await readAmazon(document.getElementById("threeSoilFile").files[0], "3soil") },
           { label: "Shein", orders: await readShein(document.getElementById("sheinFile").files[0]) },
           { label: "越山丘", orders: await readYueShanQiu(document.getElementById("yueShanQiuFile").files[0]) },
-          { label: "Shopify", orders: parseManualShopify(document.getElementById("manualShopify").value) }
+          { label: "Shopify", orders: parseManualShopify(document.getElementById("manualShopify").value) },
+          { label: "补发", orders: parseManualReship(document.getElementById("manualReship").value) }
         ].filter(group => expandedCount(group.orders) > 0);
 
-        if (!groups.length) throw new Error("没有读取到订单，请至少选择一个订单来源或填写 Shopify 手动订单。");
+        if (!groups.length) throw new Error("没有读取到订单，请至少选择一个订单来源或填写手动订单。");
         renderPreview(groups);
 
         const workbook = await workbookFromFile(templateFile);
