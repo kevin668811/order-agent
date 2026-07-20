@@ -148,7 +148,7 @@
         </div>
         <div class="file-row">
           <div class="label">补发手动</div>
-          <textarea id="manualReship" placeholder="John Adams&#10;(+1)2072174474&#10;12 Mia Rdg&#10;Sidney,Maine,United States&#10;04330&#10;4296B"></textarea>
+          <textarea id="manualReship" placeholder="577463710652142243&#10;Charles Moore&#10;(+1)6019422370&#10;3750 Paradise Hills Drive(28103)&#10;Euless,Texas,United States&#10;76040&#10;42872"></textarea>
         </div>
         <div class="file-row">
           <div class="label">下单模板</div>
@@ -432,17 +432,19 @@
       for (const block of blocks) {
         const lines = block.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
         if (lines.length < 6) continue;
-        const locationParts = lines[3].split(",").map(x => x.trim()).filter(Boolean);
+        const hasReference = lines.length >= 7;
+        const offset = hasReference ? 1 : 0;
+        const locationParts = lines[offset + 3].split(",").map(x => x.trim()).filter(Boolean);
         orders.push(makeOrder({
           source: "补发",
-          orderNo: "补发",
-          name: lines[0],
-          phone: lines[1].replace(/[()\s-]/g, ""),
-          address1: lines[2],
+          orderNo: hasReference ? `${lines[0]}-1` : "补发",
+          name: lines[offset],
+          phone: lines[offset + 1].replace(/[()\s-]/g, ""),
+          address1: lines[offset + 2],
           city: locationParts[0] || "",
           state: locationParts[1] || "",
-          zip: lines[4],
-          sku: lines[5],
+          zip: lines[offset + 4],
+          sku: lines[offset + 5],
           qty: "1"
         }));
       }
